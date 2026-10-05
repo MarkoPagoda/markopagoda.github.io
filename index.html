@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>My Portfolio</title>
+<style>
+:root{--ink:#111;--paper:#fff;--glass:rgba(150,200,240,.55);--glassb:rgba(255,255,255,.7);--sel:rgba(120,180,255,.35);box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#111;--paper:#fff}}
+:root[data-theme="dark"]{--ink:#111;--paper:#fff}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{height:100%;margin:0;overflow:hidden;font:13px "Segoe UI",Tahoma,Arial,sans-serif;color:var(--ink);background:#1d6fb5;user-select:none}
+#desk{position:absolute;inset:0 0 40px 0;background:
+radial-gradient(ellipse at 70% 30%,#8fe0ff 0,transparent 45%),
+radial-gradient(ellipse at 20% 80%,#0a4f9c 0,transparent 55%),
+linear-gradient(135deg,#0b5cad,#2da0e0 55%,#0d4a8f)}
+#icons{position:absolute;top:8px;left:8px;bottom:8px;display:flex;flex-direction:column;flex-wrap:wrap;gap:4px;align-content:flex-start}
+.ico{width:84px;padding:6px 2px;text-align:center;color:#fff;text-shadow:0 1px 3px #000,0 0 2px #000;border:1px solid transparent;border-radius:3px;cursor:default;line-height:1.2;word-break:break-word}
+.ico:hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.35)}
+.ico.on{background:var(--sel);border-color:rgba(255,255,255,.6)}
+.ico i{display:block;font-style:normal;font-size:38px;line-height:44px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.5))}
+.win{position:absolute;min-width:260px;background:var(--glass);border:1px solid rgba(0,0,0,.6);border-radius:7px 7px 3px 3px;box-shadow:0 0 0 1px rgba(255,255,255,.55) inset,0 8px 28px rgba(0,0,0,.55);padding:0 7px 7px;backdrop-filter:blur(8px);display:flex;flex-direction:column}
+.win.max{inset:0 0 0 0!important;width:auto!important;height:auto!important;border-radius:0}
+.win.hide{display:none}
+.tb{height:28px;display:flex;align-items:center;gap:6px;cursor:default;text-shadow:0 0 8px #fff,0 0 3px #fff}
+.tb b{flex:1;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btns{display:flex;margin-top:-10px;border:1px solid rgba(0,0,0,.55);border-radius:0 0 5px 5px;overflow:hidden;box-shadow:0 1px 0 rgba(255,255,255,.5) inset}
+.btns button{width:28px;height:19px;border:0;border-right:1px solid rgba(0,0,0,.35);background:linear-gradient(#e8f1fa,#b4cde6 50%,#9dbbdb 52%,#c5dbf0);font:bold 11px Arial;cursor:pointer;padding:0}
+.btns button:hover{background:linear-gradient(#f4fbff,#c6e3fa 50%,#8fcdf5 52%,#c9f0ff)}
+.btns .x{width:44px;border:0;color:#fff;background:linear-gradient(#e8a08c,#d0553a 50%,#b52a0f 52%,#d9633f)}
+.btns .x:hover{background:linear-gradient(#ffb8a4,#ff6d4a 50%,#e0361a 52%,#ff9066)}
+.body{flex:1;background:var(--paper);border:1px solid rgba(0,0,0,.5);overflow:auto;user-select:text;padding:14px 16px;line-height:1.5}
+.body h2{margin:0 0 4px;font:400 21px "Segoe UI",Tahoma,sans-serif;color:#1e3a8a}
+.body .meta{color:#666;margin-bottom:10px}
+.tag{display:inline-block;margin:0 4px 4px 0;padding:1px 8px;border:1px solid #9bb7d8;border-radius:10px;background:#eaf3fc;font-size:12px}
+.go{display:inline-block;margin-top:8px;padding:4px 16px;border:1px solid #707070;border-radius:3px;background:linear-gradient(#f2f2f2,#ebebeb 50%,#dddddd 50%,#cfcfcf);color:#111;text-decoration:none}
+.go:hover{border-color:#3c7fb1;background:linear-gradient(#eaf6fd,#d9f0fc 50%,#bee6fd 50%,#a7d9f5)}
+.addr{background:#f3f6fb;border-bottom:1px solid #ccd;padding:4px 10px;margin:-14px -16px 12px;color:#333}
+.txt{font:13px Consolas,"Courier New",monospace;white-space:pre-wrap}
+#bar{position:absolute;left:0;right:0;bottom:0;height:40px;display:flex;align-items:center;gap:4px;padding:0 6px 0 0;background:linear-gradient(rgba(170,210,245,.8),rgba(60,110,170,.88) 50%,rgba(30,70,130,.92));border-top:1px solid rgba(255,255,255,.6);backdrop-filter:blur(6px);margin-bottom:env(safe-area-inset-bottom,0px)}
+#orb{width:46px;height:46px;margin:-6px 4px 0 4px;border-radius:50%;border:2px solid rgba(255,255,255,.6);background:radial-gradient(circle at 50% 25%,#bff 0,#2bd 30%,#06a 70%);box-shadow:0 0 8px #000;font-size:22px;color:#fff;cursor:pointer;padding:0}
+#orb:hover{filter:brightness(1.2)}
+#tasks{flex:1;display:flex;gap:3px;overflow:hidden}
+.task{max-width:160px;flex:1;height:30px;border:1px solid rgba(0,0,0,.6);border-radius:3px;background:linear-gradient(rgba(255,255,255,.35),rgba(255,255,255,.1));color:#fff;text-shadow:0 1px 2px #000;text-align:left;padding:0 8px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:inherit}
+.task.act{background:linear-gradient(rgba(255,255,255,.6),rgba(150,210,255,.4))}
+#clock{color:#fff;text-shadow:0 1px 2px #000;text-align:center;font-size:12px;padding:0 6px;line-height:1.2}
+#menu{position:absolute;left:0;bottom:40px;width:min(300px,100%);background:rgba(190,220,245,.92);border:1px solid #234;border-radius:6px 6px 0 0;padding:6px;display:none;box-shadow:0 0 20px rgba(0,0,0,.5)}
+#menu.open{display:block}
+#menu div{padding:7px 10px;border-radius:3px;cursor:pointer}
+#menu div:hover{background:var(--sel)}
+@media (max-width:600px){.ico{width:76px}.win:not(.max){left:4%!important;width:92%!important}}
+</style>
+</head>
+<body>
+<div id="desk"><div id="icons"></div></div>
+<div id="menu"></div>
+<div id="bar"><button id="orb" aria-label="Start">⊞</button><div id="tasks"></div><div id="clock"></div></div>
+<script>
+
+var ITEMS=[
+ {name:"Esports Comparison",icon:"📁",title:"Esports Comparison",meta:"Personal project · 2025",desc:"A small forecast app that pulls live data and shows win rate of head to head of all teams based on draft",tags:["Python","API","Vue"],link:"https://example.com"},
+ {name:"League Tracker",icon:"📁",title:"League Tracker",meta:"Personal project · 2025",desc:"A Liquipedia style tracker of League Esports",tags:["React","localStorage"],link:"https://github.com"},
+ {name:"About me.txt",icon:"📄",title:"About me.txt - Notepad",text:"Hi, I'm Matej\n\nI build small, useful things for me and my passions.\nDouble-click the folders on the desktop\nto see my projects.\n\nBased in: Bratislava\nSkills: HTML, CSS, JavaScript, Python..."},
+ {name:"Experience.txt",icon:"📄",title:"Experience.txt - Notepad",text:"Hi, I've interned at VUB Bank sice November 2024\n\nI work as a full-stack web-dev, my work also includes builing pipelines, APIs and Database Management.\nDouble-click the folders on the desktop\nto see my personal projects.\n\nBased in: Bratislava\nSkills: HTML, CSS, JavaScript, Python..."},
+ {name:"Contact.txt",icon:"✉️",title:"Contact.txt - Notepad",text:"Email:    matejbamburak11@gmail.com\nGitHub:   github.com/nef3o\nLinkedIn: linkedin.com/in/matej-bamburak-74a281317"},
+ {name:"University.txt",icon:"📄",title:"University.txt - Notepad",text:"University: Comenius University Bratislava\nFaculty: Faculty of Management\nSpecialization: Data-Science\n\n I'm finishing my Bachelor Degree in the summer of 2027, planing to continue studying torwards Masters Degree "}
+];
+var $=function(s){return document.querySelector(s)},z=10,wins={},icons=$("#icons"),tasks=$("#tasks");
+var touch=matchMedia("(pointer:coarse)").matches;
+ITEMS.forEach(function(it,i){
+ var d=document.createElement("div");d.className="ico";d.innerHTML="<i>"+it.icon+"</i>"+it.name;
+ d.onclick=function(){document.querySelectorAll(".ico").forEach(function(e){e.classList.remove("on")});d.classList.add("on");if(touch)open(i)};
+ d.ondblclick=function(){open(i)};icons.appendChild(d);
+});
+var m=$("#menu");m.innerHTML=ITEMS.map(function(it,i){return "<div data-i='"+i+"'>"+it.icon+" "+it.name+"</div>"}).join("");
+m.onclick=function(e){var i=e.target.dataset.i;if(i!=null){open(+i);m.classList.remove("open")}};
+$("#orb").onclick=function(e){e.stopPropagation();m.classList.toggle("open")};
+document.addEventListener("click",function(e){if(!m.contains(e.target))m.classList.remove("open")});
+$("#desk").addEventListener("click",function(e){if(e.target.id==="desk")document.querySelectorAll(".ico").forEach(function(x){x.classList.remove("on")})});
+function esc(s){return s.replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c]})}
+function open(i){
+ if(wins[i]){show(i);return}
+ var it=ITEMS[i],w=document.createElement("div");w.className="win";
+ var n=Object.keys(wins).length;
+ w.style.cssText="left:"+(110+n*28)+"px;top:"+(30+n*28)+"px;width:min(480px,92%);height:340px";
+ var body=it.text?"<div class='txt'>"+esc(it.text)+"</div>":
+  "<div class='addr'>📁 Projects ▸ "+esc(it.name)+"</div><h2>"+esc(it.title)+"</h2><div class='meta'>"+esc(it.meta)+"</div><p>"+esc(it.desc)+"</p><div>"+it.tags.map(function(t){return "<span class='tag'>"+esc(t)+"</span>"}).join("")+"</div><a class='go' href='"+it.link+"' target='_blank' rel='noopener'>Open project</a>";
+ w.innerHTML="<div class='tb'><span>"+it.icon+"</span><b>"+esc(it.title)+"</b><div class='btns'><button class='mn' aria-label='Minimize'>–</button><button class='mx' aria-label='Maximize'>□</button><button class='x' aria-label='Close'>✕</button></div></div><div class='body'>"+body+"</div>";
+ $("#desk").appendChild(w);
+ var t=document.createElement("button");t.className="task";t.textContent=it.icon+" "+it.title;tasks.appendChild(t);
+ wins[i]={w:w,t:t};
+ w.addEventListener("pointerdown",function(){focus(i)});
+ t.onclick=function(){var h=w.classList.contains("hide");if(h||!t.classList.contains("act"))show(i);else{w.classList.add("hide");t.classList.remove("act")}};
+ w.querySelector(".mn").onclick=function(){w.classList.add("hide");t.classList.remove("act")};
+ w.querySelector(".mx").onclick=function(){w.classList.toggle("max")};
+ w.querySelector(".x").onclick=function(){w.remove();t.remove();delete wins[i]};
+ var tb=w.querySelector(".tb");tb.ondblclick=function(e){if(!e.target.closest(".btns"))w.classList.toggle("max")};
+ tb.addEventListener("pointerdown",function(e){
+  if(e.target.closest(".btns")||w.classList.contains("max"))return;
+  var sx=e.clientX-w.offsetLeft,sy=e.clientY-w.offsetTop;tb.setPointerCapture(e.pointerId);
+  tb.onpointermove=function(ev){w.style.left=Math.max(-200,ev.clientX-sx)+"px";w.style.top=Math.max(0,ev.clientY-sy)+"px"};
+  tb.onpointerup=function(){tb.onpointermove=null};
+ });
+ focus(i);
+}
+function show(i){wins[i].w.classList.remove("hide");focus(i)}
+function focus(i){wins[i].w.style.zIndex=++z;for(var k in wins)wins[k].t.classList.toggle("act",k==i)}
+function tick(){var d=new Date();$("#clock").innerHTML=d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+"<br>"+d.toLocaleDateString()}
+tick();setInterval(tick,30000);
+open(4);
+</script>
+</body>
+</html>
