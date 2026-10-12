@@ -1,0 +1,421 @@
+/*DESIGN TOKENS*/
+:root {
+  --taskbar-height: 40px;
+  --glass: rgba(150, 200, 240, 0.55);
+  --selection: rgba(120, 180, 255, 0.35);
+  --text-dark: #111;
+  --text-link: #1e3a8a;
+  --paper: #fff;
+}
+
+/*BASE / RESET*/
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;               /* the "desktop" never scrolls */
+  font: 13px "Segoe UI", Tahoma, Arial, sans-serif;
+  color: var(--text-dark);
+  background: #1d6fb5;            /* fallback colour if gradients fail */
+  user-select: none;              /* stops icons/titles being selected by accident */
+}
+
+button { font: inherit; }
+
+/* Visible keyboard focus for accessibility: only shows when tabbing */
+:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/*DESKTOP + ICONS*/
+#desktop {
+  position: absolute;
+  inset: 0 0 var(--taskbar-height) 0;   /* fills the screen above the taskbar */
+
+  /* To use a photo instead, replace the whole background with:
+     background: url("wallpaper.jpg") center / cover no-repeat; */
+  background:
+    radial-gradient(ellipse at 70% 30%, #8fe0ff 0, transparent 45%),
+    radial-gradient(ellipse at 20% 80%, #0a4f9c 0, transparent 55%),
+    linear-gradient(135deg, #0b5cad, #2da0e0 55%, #0d4a8f);
+}
+
+#icon-grid {
+  position: absolute;
+  inset: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;     /* icons stack top to bottom... */
+  flex-wrap: wrap;            /* ...then start a new column when out of space */
+  align-content: flex-start;
+  gap: 4px;
+  pointer-events: none;       /* empty space in the grid doesn't block clicks */
+}
+
+.icon {
+  pointer-events: auto;
+  width: 84px;
+  padding: 6px 2px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: #fff;
+  text-align: center;
+  line-height: 1.2;
+  text-shadow: 0 1px 3px #000, 0 0 2px #000;   /* keeps labels readable on any wallpaper */
+  cursor: default;
+}
+
+.icon:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.icon.selected {
+  background: var(--selection);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.icon-image {
+  display: block;
+  font-size: 38px;
+  line-height: 44px;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+}
+
+/* =====================================================
+   4. WINDOWS
+   ===================================================== */
+.window {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  min-width: 260px;
+  padding: 0 7px 7px;
+  background: var(--glass);
+  backdrop-filter: blur(8px);     /* the frosted "Aero glass" effect */
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  border-radius: 7px 7px 3px 3px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.55) inset,
+    0 8px 28px rgba(0, 0, 0, 0.55);
+  animation: window-open 0.15s ease-out;
+}
+
+.window.maximized {
+  inset: 0 !important;            /* overrides the inline position set by JS */
+  width: auto !important;
+  height: auto !important;
+  border-radius: 0;
+}
+
+.window.minimized { display: none; }
+
+@keyframes window-open {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Title bar: icon + title on the left, buttons on the right */
+.titlebar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  text-shadow: 0 0 8px #fff, 0 0 3px #fff;
+  touch-action: none;             /* lets us drag with a finger without scrolling */
+}
+
+.titlebar-text {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.window-buttons {
+  display: flex;
+  margin-top: -10px;              /* pulls the buttons up to the window's top edge */
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.55);
+  border-radius: 0 0 5px 5px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+}
+
+.window-buttons button {
+  width: 28px;
+  height: 19px;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid rgba(0, 0, 0, 0.35);
+  background: linear-gradient(#e8f1fa, #b4cde6 50%, #9dbbdb 52%, #c5dbf0);
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.window-buttons button:hover {
+  background: linear-gradient(#f4fbff, #c6e3fa 50%, #8fcdf5 52%, #c9f0ff);
+}
+
+/* The red close button is wider and has its own colours */
+.window-buttons .close {
+  width: 44px;
+  border: 0;
+  color: #fff;
+  background: linear-gradient(#e8a08c, #d0553a 50%, #b52a0f 52%, #d9633f);
+}
+
+.window-buttons .close:hover {
+  background: linear-gradient(#ffb8a4, #ff6d4a 50%, #e0361a 52%, #ff9066);
+}
+
+/* White content area inside the window */
+.window-content {
+  flex: 1;
+  overflow: auto;
+  padding: 14px 16px;
+  background: var(--paper);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  line-height: 1.5;
+  user-select: text;              /* visitors can copy text, e.g. your email */
+}
+
+.window-content h2 {
+  margin: 0 0 4px;
+  font-size: 21px;
+  font-weight: 400;
+  color: var(--text-link);
+}
+
+.meta { margin: 0 0 10px; color: #666; }
+
+/* The little breadcrumb strip at the top of project windows */
+.address-bar {
+  margin: -14px -16px 12px;
+  padding: 4px 10px;
+  background: #f3f6fb;
+  border-bottom: 1px solid #ccd;
+  color: #333;
+}
+
+.tag {
+  display: inline-block;
+  margin: 0 4px 4px 0;
+  padding: 1px 8px;
+  border: 1px solid #9bb7d8;
+  border-radius: 10px;
+  background: #eaf3fc;
+  font-size: 12px;
+}
+
+.open-link {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 16px;
+  border: 1px solid #707070;
+  border-radius: 3px;
+  background: linear-gradient(#f2f2f2, #ebebeb 50%, #ddd 50%, #cfcfcf);
+  color: var(--text-dark);
+  text-decoration: none;
+}
+
+.open-link:hover {
+  border-color: #3c7fb1;
+  background: linear-gradient(#eaf6fd, #d9f0fc 50%, #bee6fd 50%, #a7d9f5);
+}
+
+/* Notepad-style text files */
+.notepad {
+  margin: 0;
+  font: 13px Consolas, "Courier New", monospace;
+  white-space: pre-wrap;          /* keeps the line breaks from the text */
+}
+
+/*TASKBAR + START MENU*/
+#taskbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: var(--taskbar-height);
+  padding: 0 6px 0 0;
+  background: linear-gradient(rgba(170, 210, 245, 0.8), rgba(60, 110, 170, 0.88) 50%, rgba(30, 70, 130, 0.92));
+  border-top: 1px solid rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(6px);
+}
+
+#start-button {
+  width: 46px;
+  height: 46px;
+  margin: -6px 4px 0;             /* the orb sticks out above the taskbar */
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 25%, #bff 0, #2bd 30%, #06a 70%);
+  box-shadow: 0 0 8px #000;
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+#start-button:hover { filter: brightness(1.2); }
+
+#task-list {
+  display: flex;
+  flex: 1;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.task {
+  flex: 1;
+  max-width: 160px;
+  height: 30px;
+  padding: 0 8px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  border-radius: 3px;
+  background: linear-gradient(rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.1));
+  color: #fff;
+  text-align: left;
+  text-shadow: 0 1px 2px #000;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.task.active {
+  background: linear-gradient(rgba(255, 255, 255, 0.6), rgba(150, 210, 255, 0.4));
+}
+
+#clock {
+  padding: 0 6px;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: center;
+  text-shadow: 0 1px 2px #000;
+}
+
+#start-menu {
+  position: absolute;
+  left: 0;
+  bottom: var(--taskbar-height);
+  width: min(300px, 100%);
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: rgba(190, 220, 245, 0.92);
+  border: 1px solid #234;
+  border-radius: 6px 6px 0 0;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+#start-menu[hidden] { display: none; }
+
+#start-menu button {
+  width: 100%;
+  padding: 7px 10px;
+  background: none;
+  border: 0;
+  border-radius: 3px;
+  text-align: left;
+  cursor: pointer;
+}
+
+#start-menu button:hover { background: var(--selection); }
+
+/*SMALL SCREENS*/
+@media (max-width: 600px) {
+  .icon { width: 76px; }
+
+  /* On phones, windows fill most of the width instead of being dragged around */
+  .window:not(.maximized) {
+    left: 4% !important;
+    width: 92% !important;
+  }
+}
+
+/* Respect visitors who turned animations off in their OS settings */
+@media (prefers-reduced-motion: reduce) {
+  .window { animation: none; }
+}
+
+/*WALLPAPER PICKER + RIGHT-CLICK MENU*/
+.wallpaper-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.wallpaper-option {
+  padding: 5px;
+  background: #f3f6fb;
+  border: 1px solid #c3d3e6;
+  border-radius: 3px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.wallpaper-option:hover { background: #dff0fc; border-color: #7fb4de; }
+.wallpaper-option.selected { background: #cfe6fa; border-color: #3c7fb1; }
+
+.wallpaper-option img,
+.default-swatch {
+  display: block;
+  width: 100%;
+  height: 66px;
+  margin-bottom: 4px;
+  object-fit: cover;                 /* crops the thumbnail instead of squashing it */
+  border: 1px solid rgba(0, 0, 0, 0.35);
+}
+
+.default-swatch {
+  background: linear-gradient(135deg, #0b5cad, #2da0e0 55%, #0d4a8f);
+}
+
+#context-menu {
+  position: fixed;
+  z-index: 9999;                     /* above every window */
+  min-width: 150px;
+  margin: 0;
+  padding: 3px;
+  list-style: none;
+  background: #f2f2f2;
+  border: 1px solid #888;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+#context-menu[hidden] { display: none; }
+
+#context-menu button {
+  width: 100%;
+  padding: 5px 20px 5px 10px;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+#context-menu button:hover { background: #cfe6fa; }
+
+/*DEMO WINDOWS (iframe)*/
+.window-content:has(.demo-frame) {
+  padding: 0;                        /* let the demo fill the whole window */
+  overflow: hidden;
+}
+
+.demo-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}

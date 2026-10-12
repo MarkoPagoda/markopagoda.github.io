@@ -1,0 +1,889 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Draft explorer — lol-predict</title>
+<!-- DEMO: mock-api.js answers the /api/ calls in the browser, so no Python server is needed -->
+<script src="mock-api.js"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --page:           #f9f9f7;
+    --surface-1:      #fcfcfb;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11, 11, 11, 0.10);
+    --blue:           #2a78d6;
+    --red:            #e34948;
+    --neutral:        #f0efec;
+    --warning:        #fab219;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page:           #0d0d0d;
+      --surface-1:      #1a1a19;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255, 255, 255, 0.10);
+      --blue:           #3987e5;
+      --red:            #e66767;
+      --neutral:        #383835;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page:           #0d0d0d;
+    --surface-1:      #1a1a19;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255, 255, 255, 0.10);
+    --blue:           #3987e5;
+    --red:            #e66767;
+    --neutral:        #383835;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 20px 64px; }
+
+  header h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  header p  { margin: 0; color: var(--text-secondary); font-size: 14px; }
+
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+  }
+  .card > h2 {
+    margin: 0 0 2px; font-size: 15px; font-weight: 600;
+  }
+  .card > .sub { margin: 0 0 18px; color: var(--text-secondary); font-size: 13px; }
+
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+  button {
+    font: inherit; font-size: 13px;
+    background: var(--surface-1); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 7px 13px; cursor: pointer;
+  }
+  button:hover { background: var(--neutral); }
+
+  /* -- draft board ------------------------------------------------------- */
+  .board { display: grid; grid-template-columns: 1fr 84px 1fr; gap: 8px 12px; align-items: center; }
+  .board .head { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+  .board .head.blue { color: var(--text-secondary); }
+  .board .head.red  { color: var(--text-secondary); text-align: right; }
+  .board .rolename {
+    font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--text-muted); text-align: center;
+  }
+  .slot { display: flex; align-items: center; gap: 8px; }
+  .slot.right { flex-direction: row-reverse; }
+  .swatch { width: 8px; height: 24px; border-radius: 2px; flex: none; }
+  .swatch.blue { background: var(--blue); }
+  .swatch.red  { background: var(--red); }
+  select {
+    font: inherit; font-size: 14px; width: 100%;
+    background: var(--surface-1); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px;
+  }
+  .flag {
+    font-size: 11px; color: var(--text-muted); white-space: nowrap;
+  }
+  .teamrow { display: grid; grid-template-columns: 1fr 84px 1fr; gap: 8px 12px; align-items: center; }
+  .teamrow .rolename {
+    font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--text-muted); text-align: center;
+  }
+  .rosterline { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .savegrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .savegrid label, #save-card label {
+    display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;
+  }
+  #save-card input, #save-card select, #save-card textarea {
+    font: inherit; font-size: 14px; width: 100%;
+    background: var(--surface-1); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px;
+  }
+  #save-card textarea { min-height: 52px; resize: vertical; }
+  button.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+  button.primary:hover { filter: brightness(1.08); }
+  .badge {
+    display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px;
+    border: 1px solid var(--border); color: var(--text-secondary); margin-left: 8px;
+  }
+
+  /* -- hero + split bar -------------------------------------------------- */
+  .hero { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .hero .figure { font-size: 52px; font-weight: 600; line-height: 1; letter-spacing: -0.02em; }
+  .hero .figure-label { color: var(--text-secondary); font-size: 14px; }
+
+  .split { display: flex; gap: 2px; margin-top: 18px; height: 22px; }
+  .split .seg { height: 100%; }
+  .split .seg.blue { background: var(--blue); border-radius: 4px 0 0 4px; }
+  .split .seg.red  { background: var(--red);  border-radius: 0 4px 4px 0; }
+  .split-labels {
+    display: flex; justify-content: space-between;
+    margin-top: 7px; font-size: 12px; color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* -- diverging matchup chart ------------------------------------------- */
+  .legend { display: flex; gap: 16px; margin-bottom: 16px; font-size: 12px; color: var(--text-secondary); }
+  .legend .key { display: flex; align-items: center; gap: 6px; }
+  .legend .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .legend .dot.blue { background: var(--blue); }
+  .legend .dot.red  { background: var(--red); }
+
+  .mrow {
+    display: grid; grid-template-columns: 62px 1fr 190px 1fr 62px;
+    gap: 10px; align-items: center; padding: 5px 0;
+  }
+  .mrow .role {
+    font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted);
+  }
+  .mrow .champ { font-size: 13px; color: var(--text-secondary); }
+  .mrow .champ.blue { text-align: right; }
+  .mrow .value {
+    font-size: 12px; color: var(--text-secondary); text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .track { position: relative; height: 24px; }
+  .track .zero {
+    position: absolute; left: 50%; top: 0; bottom: 0;
+    width: 1px; background: var(--baseline);
+  }
+  .track .bar { position: absolute; top: 5px; height: 14px; }
+  .track .bar.pos { left: 50%; background: var(--blue); border-radius: 0 4px 4px 0; }
+  .track .bar.neg { right: 50%; background: var(--red);  border-radius: 4px 0 0 4px; }
+  .track .hit { position: absolute; inset: 0; cursor: default; }
+
+  .axis-note { margin-top: 10px; font-size: 11px; color: var(--text-muted); text-align: center; }
+
+  /* -- win-condition curve ----------------------------------------------- */
+  .curvewrap { position: relative; width: 100%; }
+  #curve { width: 100%; height: 260px; display: block; overflow: visible; }
+  #curve .grid { stroke: var(--gridline); stroke-width: 1; }
+  #curve .even { stroke: var(--baseline); stroke-width: 1; }
+  #curve .line { fill: none; stroke: var(--text-primary); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  #curve .fill-blue { fill: var(--blue); opacity: .10; }
+  #curve .fill-red  { fill: var(--red);  opacity: .10; }
+  #curve .cross { stroke: var(--text-muted); stroke-width: 1; }
+  #curve .tick { fill: var(--text-muted); font-size: 11px; font-family: system-ui, sans-serif; }
+  #curve .crossdot { fill: var(--text-primary); stroke: var(--surface-1); stroke-width: 2; }
+  #curve .hover-line { stroke: var(--baseline); stroke-width: 1; opacity: 0; }
+  #curve .hover-dot { stroke: var(--surface-1); stroke-width: 2; opacity: 0; }
+
+  /* -- table view -------------------------------------------------------- */
+  .tablewrap { overflow-x: auto; margin-top: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--gridline); white-space: nowrap; }
+  th { color: var(--text-secondary); font-weight: 600; font-size: 12px; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td .sidedot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; }
+  td .sidedot.blue { background: var(--blue); }
+  td .sidedot.red  { background: var(--red); }
+  .lowflag { color: var(--warning); }
+
+  /* -- scorecard --------------------------------------------------------- */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+  .metric .label { font-size: 12px; color: var(--text-secondary); }
+  .metric .val { font-size: 20px; font-weight: 600; }
+  .caveat {
+    margin-top: 18px; padding: 13px 15px;
+    border-left: 2px solid var(--warning); background: var(--neutral);
+    border-radius: 0 6px 6px 0; font-size: 13px; color: var(--text-secondary);
+  }
+  .caveat strong { color: var(--text-primary); }
+
+  #tooltip {
+    position: fixed; z-index: 20; pointer-events: none; opacity: 0;
+    transition: opacity .1s; max-width: 280px;
+    background: var(--surface-1); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 9px 11px; font-size: 12px; line-height: 1.5;
+    box-shadow: 0 4px 14px rgba(0,0,0,.13);
+  }
+  #tooltip .tt-title { font-weight: 600; margin-bottom: 3px; }
+  #tooltip .tt-row { color: var(--text-secondary); }
+
+  .error { color: var(--red); font-size: 13px; }
+  @media (max-width: 720px) {
+    .mrow { grid-template-columns: 52px 1fr 96px 1fr 52px; gap: 6px; }
+    .board { grid-template-columns: 1fr 64px 1fr; }
+    .hero .figure { font-size: 40px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Draft explorer</h1>
+    <p>Pick a full draft and see what the model makes of it — before a single minion spawns.
+       <a href="journal.html" style="color:var(--blue);text-decoration:none">Prediction journal →</a></p>
+  </header>
+
+  <section class="card" id="teams-card" hidden>
+    <h2>The teams</h2>
+    <p class="sub">Optional. Adds roster strength on top of the draft, from 6,507 pro games. Leave blank to score the draft alone.</p>
+    <div class="teamrow">
+      <div class="slot">
+        <span class="swatch blue"></span>
+        <select id="sel-blue-team"></select>
+      </div>
+      <div class="rolename">vs</div>
+      <div class="slot right">
+        <span class="swatch red"></span>
+        <select id="sel-red-team"></select>
+      </div>
+    </div>
+    <div class="caveat" id="team-note" hidden></div>
+  </section>
+
+  <section class="card">
+    <h2>The draft</h2>
+    <p class="sub">Champion pools are the ones seen at each role in the training data.</p>
+    <div class="board" id="board"></div>
+    <div class="toolbar">
+      <button id="randomize">Random draft</button>
+      <button id="mirror">Swap sides</button>
+    </div>
+    <p class="error" id="error" hidden></p>
+  </section>
+
+  <section class="card" id="result-card" hidden>
+    <h2>Predicted outcome</h2>
+    <p class="sub" id="result-sub"></p>
+    <div class="hero">
+      <span class="figure" id="hero-figure">—</span>
+      <span class="figure-label">chance blue side wins</span>
+    </div>
+    <div class="split">
+      <div class="seg blue" id="seg-blue"></div>
+      <div class="seg red" id="seg-red"></div>
+    </div>
+    <div class="split-labels">
+      <span id="label-blue">Blue —</span>
+      <span id="label-red">Red —</span>
+    </div>
+  </section>
+
+  <section class="card" id="chart-card" hidden>
+    <h2>Which lanes move the number</h2>
+    <p class="sub">Each bar is that role's net effect on blue's log-odds: both champions' ratings combined.</p>
+    <div class="legend">
+      <span class="key"><span class="dot blue"></span> Favours blue side</span>
+      <span class="key"><span class="dot red"></span> Favours red side</span>
+    </div>
+    <div id="matchups"></div>
+    <p class="axis-note">← red-favouring &nbsp;·&nbsp; neutral &nbsp;·&nbsp; blue-favouring →</p>
+  </section>
+
+  <section class="card" id="wincon-card" hidden>
+    <h2>Win condition</h2>
+    <p class="sub" id="wincon-sub"></p>
+    <div class="curvewrap">
+      <svg id="curve" viewBox="0 0 720 260" preserveAspectRatio="none" role="img"
+           aria-label="Blue win probability against game length"></svg>
+    </div>
+    <p class="axis-note">Game length (minutes)</p>
+    <div class="caveat" id="wincon-caveat"></div>
+  </section>
+
+  <section class="card" id="table-card" hidden>
+    <h2>Every pick</h2>
+    <p class="sub">The same numbers as the chart, per champion. Rating is the model's learned draft strength for that champion in that role.</p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Pick</th><th>Role</th>
+            <th class="num">Rating</th>
+            <th class="num">Effect on blue</th>
+            <th class="num">Win rate</th>
+            <th class="num">Games</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" id="save-card" hidden>
+    <h2>Save to journal</h2>
+    <p class="sub" id="save-sub"></p>
+    <div class="savegrid">
+      <div><label for="j-label">Label</label><input id="j-label" placeholder="LCK W3D2"></div>
+      <div><label for="j-ob">Odds blue</label><input id="j-ob" type="number" step="0.01" min="1.01" placeholder="1.85"></div>
+      <div><label for="j-or">Odds red</label><input id="j-or" type="number" step="0.01" min="1.01" placeholder="1.95"></div>
+      <div><label for="j-pick">My pick</label><select id="j-pick">
+        <option value="">— none —</option><option value="blue">Blue</option><option value="red">Red</option>
+      </select></div>
+      <div><label for="j-kind">Kind</label><select id="j-kind">
+        <option value="real">Real fixture</option><option value="fantasy">Fantasy</option>
+      </select></div>
+    </div>
+    <div style="margin-top:12px"><label for="j-notes">Notes</label><textarea id="j-notes" placeholder="Why you picked what you picked — the part you'll forget"></textarea></div>
+    <div class="toolbar">
+      <button class="primary" id="j-save">Save to journal</button>
+      <span class="badge" id="j-implied" hidden></span>
+      <span class="badge" id="j-status" hidden></span>
+      <a href="journal.html" style="font-size:13px;color:var(--blue);text-decoration:none;margin-left:auto">Open journal →</a>
+    </div>
+  </section>
+
+  <section class="card" id="model-card" hidden>
+    <h2>How much to trust this</h2>
+    <p class="sub">Held-out scores for the model behind the number above.</p>
+    <div class="metrics" id="metrics"></div>
+    <div class="caveat" id="caveat"></div>
+  </section>
+</div>
+
+<div id="tooltip" role="status" aria-live="polite"></div>
+
+<script>
+const ROLE_LABEL = { TOP: "Top", JUNGLE: "Jungle", MIDDLE: "Mid", BOTTOM: "Bot", UTILITY: "Support" };
+let META = null;
+// Last /api/predict response, so "save to journal" records exactly the
+// numbers on screen rather than recomputing and risking a mismatch.
+let LAST = null;
+
+const $ = (id) => document.getElementById(id);
+// Team and champion names come from third-party data and are interpolated
+// into markup -- one real team is called "4 Swines & A Bum".
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pct = (x) => (x * 100).toFixed(1) + "%";
+const signed = (x) => (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(3);
+
+async function boot() {
+  try {
+    const res = await fetch("/api/meta");
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+    META = await res.json();
+  } catch (err) {
+    $("error").hidden = false;
+    $("error").textContent = "Could not load the model: " + err.message;
+    return;
+  }
+  buildBoard();
+  buildTeams();
+  renderScorecard();
+  randomize();
+}
+
+function buildTeams() {
+  if (!META.teams || !META.teams.length) return;
+  $("teams-card").hidden = false;
+
+  // Grouped by league because the model can only compare teams inside one
+  // -- the grouping is the affordance that keeps you from picking a pair
+  // it cannot score.
+  const byLeague = {};
+  for (const t of META.teams) (byLeague[t.league || "—"] ||= []).push(t);
+  const options = '<option value="">— no team —</option>' +
+    Object.keys(byLeague).sort().map((lg) =>
+      `<optgroup label="${esc(lg)}">` +
+      byLeague[lg].sort((a, b) => b.rating - a.rating)
+        .map((t) => `<option value="${esc(t.team)}">${esc(t.team)} (${t.rating >= 0 ? "+" : "−"}${Math.abs(t.rating).toFixed(2)})</option>`)
+        .join("") + "</optgroup>").join("");
+
+  for (const id of ["sel-blue-team", "sel-red-team"]) {
+    const sel = $(id);
+    sel.innerHTML = options;
+    sel.addEventListener("change", predict);
+  }
+}
+
+function buildBoard() {
+  const board = $("board");
+  board.innerHTML = "";
+  board.insertAdjacentHTML("beforeend",
+    '<div class="head blue">Blue side</div><div></div><div class="head red">Red side</div>');
+
+  for (const role of META.roles) {
+    board.insertAdjacentHTML("beforeend", `
+      <div class="slot">
+        <span class="swatch blue"></span>
+        <select id="sel-blue_${role}" data-column="${columnFor("blue", role)}"></select>
+      </div>
+      <div class="rolename">${ROLE_LABEL[role]}</div>
+      <div class="slot right">
+        <span class="swatch red"></span>
+        <select id="sel-red_${role}" data-column="${columnFor("red", role)}"></select>
+      </div>`);
+  }
+
+  for (const role of META.roles) {
+    const options = META.champions[role]
+      .map((c) => `<option value="${esc(c.champion)}">${esc(c.champion)}</option>`).join("");
+    for (const side of ["blue", "red"]) {
+      const sel = $(`sel-${side}_${role}`);
+      sel.innerHTML = options;
+      sel.addEventListener("change", predict);
+    }
+  }
+}
+
+function columnFor(side, role) {
+  return META.columns.find((c) => c.side === side && c.role === role).column;
+}
+
+function currentPicks() {
+  const picks = {};
+  for (const role of META.roles) {
+    for (const side of ["blue", "red"]) {
+      const sel = $(`sel-${side}_${role}`);
+      picks[sel.dataset.column] = sel.value;
+    }
+  }
+  return picks;
+}
+
+function randomize() {
+  for (const role of META.roles) {
+    const pool = META.champions[role];
+    // Sample without replacement within a role so both sides can't field
+    // the same champion in the same lane.
+    let a = Math.floor(Math.random() * pool.length);
+    let b = Math.floor(Math.random() * pool.length);
+    if (pool.length > 1) { while (b === a) b = Math.floor(Math.random() * pool.length); }
+    $(`sel-blue_${role}`).value = pool[a].champion;
+    $(`sel-red_${role}`).value = pool[b].champion;
+  }
+  predict();
+}
+
+function swapSides() {
+  for (const role of META.roles) {
+    const blue = $(`sel-blue_${role}`), red = $(`sel-red_${role}`);
+    const tmp = blue.value; blue.value = red.value; red.value = tmp;
+  }
+  predict();
+}
+
+async function predict() {
+  let data;
+  try {
+    const res = await fetch("/api/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        picks: currentPicks(),
+        blue_team: $("sel-blue-team")?.value || null,
+        red_team: $("sel-red-team")?.value || null,
+      }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+    data = await res.json();
+    $("error").hidden = true;
+  } catch (err) {
+    $("error").hidden = false;
+    $("error").textContent = "Prediction failed: " + err.message;
+    return;
+  }
+
+  for (const id of ["result-card", "chart-card", "table-card", "model-card", "save-card"]) $(id).hidden = false;
+  LAST = data;
+  renderSavePanel(data);
+  renderHero(data);
+  renderMatchups(data);
+  renderWincon(data);
+  renderTable(data);
+}
+
+const CURVE = { w: 720, h: 260, padL: 44, padR: 16, padT: 14, padB: 28 };
+
+function renderWincon(data) {
+  const pts = data.curve || [];
+  if (pts.length < 2) { $("wincon-card").hidden = true; return; }
+  $("wincon-card").hidden = false;
+
+  const { w, h, padL, padR, padT, padB } = CURVE;
+  const x0 = pts[0].minute, x1 = pts[pts.length - 1].minute;
+  // Fixed probability window: the curve's real movement is small, and a
+  // free y-scale would inflate a 3-point swing into a dramatic slope.
+  const y0 = 0.30, y1 = 0.70;
+  const sx = (m) => padL + ((m - x0) / (x1 - x0)) * (w - padL - padR);
+  const sy = (p) => padT + (1 - (Math.min(Math.max(p, y0), y1) - y0) / (y1 - y0)) * (h - padT - padB);
+
+  const line = pts.map((p, i) => `${i ? "L" : "M"}${sx(p.minute).toFixed(1)},${sy(p.blue_win_probability).toFixed(1)}`).join("");
+  const even = sy(0.5);
+  // Split the area at the 50% line so the tint says who is favoured.
+  const areaTop = `${line}L${sx(x1)},${even}L${sx(x0)},${even}Z`;
+
+  const gridY = [0.35, 0.40, 0.45, 0.55, 0.60, 0.65];
+  const gridX = [];
+  for (let m = Math.ceil(x0 / 5) * 5; m <= x1; m += 5) gridX.push(m);
+
+  const svg = $("curve");
+  svg.innerHTML = `
+    <defs>
+      <clipPath id="clip-above"><rect x="${padL}" y="${padT}" width="${w - padL - padR}" height="${even - padT}"/></clipPath>
+      <clipPath id="clip-below"><rect x="${padL}" y="${even}" width="${w - padL - padR}" height="${h - padB - even}"/></clipPath>
+    </defs>
+    ${gridY.map((p) => `<line class="grid" x1="${padL}" x2="${w - padR}" y1="${sy(p)}" y2="${sy(p)}"/>`).join("")}
+    ${gridX.map((m) => `<line class="grid" x1="${sx(m)}" x2="${sx(m)}" y1="${padT}" y2="${h - padB}"/>`).join("")}
+    <path class="fill-blue" d="${areaTop}" clip-path="url(#clip-above)"/>
+    <path class="fill-red"  d="${areaTop}" clip-path="url(#clip-below)"/>
+    <line class="even" x1="${padL}" x2="${w - padR}" y1="${even}" y2="${even}"/>
+    <path class="line" d="${line}"/>
+    ${gridY.concat([0.5]).map((p) => `<text class="tick" x="${padL - 8}" y="${sy(p) + 4}" text-anchor="end">${(p * 100).toFixed(0)}%</text>`).join("")}
+    ${gridX.map((m) => `<text class="tick" x="${sx(m)}" y="${h - padB + 16}" text-anchor="middle">${m}</text>`).join("")}
+    ${data.crossover_minute != null ? `
+      <line class="cross" x1="${sx(data.crossover_minute)}" x2="${sx(data.crossover_minute)}" y1="${padT}" y2="${h - padB}"/>
+      <circle class="crossdot" cx="${sx(data.crossover_minute)}" cy="${even}" r="4"/>` : ""}
+    <line class="hover-line" id="hv" x1="0" x2="0" y1="${padT}" y2="${h - padB}"/>
+    <circle class="hover-dot" id="hd" r="4.5" fill="var(--text-primary)"/>
+    <rect x="${padL}" y="${padT}" width="${w - padL - padR}" height="${h - padT - padB}" fill="transparent" id="hitarea"/>`;
+
+  const hit = svg.querySelector("#hitarea");
+  hit.addEventListener("mousemove", (e) => {
+    const box = svg.getBoundingClientRect();
+    const mx = ((e.clientX - box.left) / box.width) * w;
+    const minute = x0 + ((mx - padL) / (w - padL - padR)) * (x1 - x0);
+    let best = pts[0];
+    for (const p of pts) if (Math.abs(p.minute - minute) < Math.abs(best.minute - minute)) best = p;
+    const hv = svg.querySelector("#hv"), hd = svg.querySelector("#hd");
+    hv.setAttribute("x1", sx(best.minute)); hv.setAttribute("x2", sx(best.minute));
+    hv.style.opacity = "1";
+    hd.setAttribute("cx", sx(best.minute)); hd.setAttribute("cy", sy(best.blue_win_probability));
+    hd.style.opacity = "1";
+    const side = best.blue_win_probability >= 0.5 ? "Blue" : "Red";
+    const p = best.blue_win_probability >= 0.5 ? best.blue_win_probability : 1 - best.blue_win_probability;
+    showTipHTML(e, `<div class="tt-title">At ${best.minute.toFixed(0)} minutes</div>
+      <div class="tt-row">${side} favoured — ${pct(p)}</div>`);
+  });
+  hit.addEventListener("mouseleave", () => {
+    svg.querySelector("#hv").style.opacity = "0";
+    svg.querySelector("#hd").style.opacity = "0";
+    hideTip();
+  });
+
+  const first = pts[0].blue_win_probability, last = pts[pts.length - 1].blue_win_probability;
+  const cross = data.crossover_minute;
+  let verdict;
+  if (cross != null) {
+    const early = first >= 0.5 ? "Blue" : "Red";
+    const late = last >= 0.5 ? "Blue" : "Red";
+    verdict = `${early} side has the early win condition and ${late} side the late one — the draft flips at about `
+            + `<strong>${cross.toFixed(0)} minutes</strong>. ${early} needs to close before then; ${late} needs to survive past it.`;
+  } else {
+    const who = last >= 0.5 ? "Blue" : "Red";
+    const drift = last - first;
+    const shape = Math.abs(drift) < 0.01 ? "and game length barely changes it"
+      : (drift > 0) === (who === "Blue") ? "and its edge grows the longer the game runs"
+      : "though its edge shrinks the longer the game runs";
+    verdict = `${who} side is favoured at every game length in this range, ${shape}.`;
+  }
+  $("wincon-sub").innerHTML = verdict;
+
+  $("wincon-caveat").innerHTML =
+    `<strong>This is a conditional read, not a forecast.</strong> Game length is an `
+    + `outcome, not something the draft decides — measured on this dataset, champion picks `
+    + `explain essentially none of it (R² ≈ 0). So the curve answers "if the game runs this `
+    + `long, who is favoured", which is the useful question in champion select. It does not `
+    + `say the draft will make the game run long, and a steep curve partly reflects champions `
+    + `that struggle to close games out rather than pure scaling.`;
+}
+
+function journalContext(data) {
+  // League comes from the teams rather than being typed again. A
+  // cross-league fixture has no single league, so both are recorded --
+  // dropping one would misfile the entry under a region it wasn't played in.
+  const pro = data.pro;
+  const blue = $("sel-blue-team")?.value || null;
+  const red = $("sel-red-team")?.value || null;
+  let league = null;
+  if (pro && pro.available) {
+    league = pro.cross_league
+      ? `${pro.blue_team.league} vs ${pro.red_team.league}`
+      : pro.league;
+  }
+  const usingPro = pro && pro.available;
+  return {
+    blue_team: blue, red_team: red, league,
+    probability: usingPro ? pro.blue_win_probability : data.blue_win_probability,
+    draft_logit: usingPro ? pro.draft_logit : data.draft_logit,
+    team_logit: usingPro ? pro.team_logit : null,
+    source: usingPro ? "pro" : "draft-only",
+  };
+}
+
+function renderSavePanel(data) {
+  const ctx = journalContext(data);
+  const who = ctx.blue_team && ctx.red_team
+    ? `${esc(ctx.blue_team)} vs ${esc(ctx.red_team)}${ctx.league ? ` · ${esc(ctx.league)}` : ""}`
+    : "no teams selected — the draft alone will be saved";
+  $("save-sub").innerHTML =
+    `Saves the full draft, the model's ${pct(ctx.probability)} for blue, and a timestamp. `
+    + `<strong>${who}</strong>. Record the winner later from the journal.`;
+  $("j-status").hidden = true;
+  refreshJournalImplied();
+}
+
+function refreshJournalImplied() {
+  const ob = parseFloat($("j-ob").value), or_ = parseFloat($("j-or").value);
+  const el = $("j-implied");
+  if (!ob || !or_ || ob <= 1 || or_ <= 1) { el.hidden = true; return; }
+  const rb = 1 / ob, rr = 1 / or_, over = rb + rr;
+  el.hidden = false;
+  el.textContent = `Market: blue ${pct(rb / over)} · margin ${((over - 1) * 100).toFixed(1)}%`;
+}
+
+async function saveToJournal() {
+  if (!LAST) return;
+  const ctx = journalContext(LAST);
+  const body = {
+    kind: $("j-kind").value,
+    label: $("j-label").value || null,
+    league: ctx.league,
+    blue_team: ctx.blue_team,
+    red_team: ctx.red_team,
+    picks: currentPicks(),
+    model_probability: ctx.probability,
+    draft_logit: ctx.draft_logit,
+    team_logit: ctx.team_logit,
+    model_version: ctx.source,
+    odds_blue: $("j-ob").value ? parseFloat($("j-ob").value) : null,
+    odds_red: $("j-or").value ? parseFloat($("j-or").value) : null,
+    user_pick: $("j-pick").value || null,
+    notes: $("j-notes").value || null,
+  };
+  const status = $("j-status");
+  try {
+    const res = await fetch("/api/journal", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(res.statusText);
+    const { id } = await res.json();
+    status.hidden = false;
+    status.textContent = `Saved as #${id}`;
+    for (const el of ["j-label", "j-ob", "j-or", "j-notes"]) $(el).value = "";
+    $("j-pick").value = "";
+    refreshJournalImplied();
+  } catch (err) {
+    status.hidden = false;
+    status.textContent = "Save failed: " + err.message;
+  }
+}
+
+function roster(side) {
+  // The five players the rating is actually built from — worth showing,
+  // since a team's strength here is the sum of its current line-up rather
+  // than an opaque team-level number.
+  if (!side.roster || !side.roster.players.length) return "";
+  const names = side.roster.players
+    .map((p) => `${esc(p.name)} ${p.known ? signed(p.rating) : "—"}`).join(", ");
+  return `<br><span class="rosterline">${esc(side.team)}: ${names}</span>`;
+}
+
+function renderHero(data) {
+  const pro = data.pro;
+  const usingPro = pro && pro.available;
+  // With teams chosen the pro model is the better answer -- it is the one
+  // that knows who is playing. Falls back to the draft-only number.
+  const p = usingPro ? pro.blue_win_probability : data.blue_win_probability;
+
+  $("hero-figure").textContent = pct(p);
+  $("seg-blue").style.flex = String(Math.max(p, 0.001));
+  $("seg-red").style.flex = String(Math.max(1 - p, 0.001));
+  $("label-blue").textContent = "Blue " + pct(p);
+  $("label-red").textContent = "Red " + pct(1 - p);
+
+  const note = $("team-note");
+  if (pro && !pro.available) {
+    note.hidden = false;
+    note.innerHTML = `<strong>${pro.reason === "cross_league" ? "Cannot compare these teams." : "Team not in the data."}</strong> ${pro.detail} Showing the draft-only number instead.`;
+  } else {
+    note.hidden = true;
+  }
+
+  if (usingPro) {
+    const edge = pro.team_logit >= 0 ? pro.blue_team : pro.red_team;
+    const other = pro.team_logit >= 0 ? pro.red_team : pro.blue_team;
+    const badge = pro.cross_league
+      ? `<span class="badge">${esc(pro.blue_team.league)} vs ${esc(pro.red_team.league)}</span>`
+      : `<span class="badge">${esc(pro.league)}</span>`;
+    $("result-sub").innerHTML =
+      `<strong>${esc(pro.blue_team.team)}</strong> vs <strong>${esc(pro.red_team.team)}</strong>${badge}<br>`
+      + `Roster edge to ${esc(edge.team)} (${signed(Math.abs(pro.team_logit))} log-odds over ${esc(other.team)}); `
+      + `draft contributes ${signed(pro.draft_logit)}. `
+      + roster(pro.blue_team) + roster(pro.red_team)
+      + (META.pro_metrics
+          ? `Team strength is the bigger term — ${META.pro_metrics.roc_auc_team_only.toFixed(3)} AUC alone `
+            + `versus ${META.pro_metrics.roc_auc_draft_only.toFixed(3)} for the draft.`
+          : "");
+
+    const note = $("team-note");
+    if (pro.cross_league) {
+      // Supported, but worth naming: the two teams never meet domestically,
+      // so the comparison rests on how their leagues have fared against
+      // each other at international events.
+      note.hidden = false;
+      note.innerHTML =
+        `<strong>Cross-league matchup.</strong> ${esc(pro.blue_team.team)} plays in `
+        + `${esc(pro.blue_team.league)} and ${esc(pro.red_team.team)} in ${esc(pro.red_team.league)}, `
+        + `so this rests on league strength estimated from international games across all six `
+        + `ingested years — thinner evidence than a domestic matchup.`;
+    }
+    return;
+  }
+
+  const draft = data.draft_logit, side = data.side_logit;
+  const lean = Math.abs(draft) < 0.02 ? "an essentially even draft"
+             : draft > 0 ? "a draft leaning blue" : "a draft leaning red";
+  $("result-sub").textContent =
+    `${lean} (draft ${signed(draft)} log-odds), plus a fixed ${signed(side)} side prior `
+    + `for blue winning ${pct(1 / (1 + Math.exp(-side)))} of games in this dataset regardless of picks.`;
+}
+
+function renderMatchups(data) {
+  const rows = data.by_role;
+  const maxAbs = Math.max(0.01, ...rows.map((r) => Math.abs(r.net)));
+  const host = $("matchups");
+  host.innerHTML = "";
+
+  for (const row of rows) {
+    const width = (Math.abs(row.net) / maxAbs) * 50;
+    const cls = row.net >= 0 ? "pos" : "neg";
+    const el = document.createElement("div");
+    el.className = "mrow";
+    el.innerHTML = `
+      <div class="role">${ROLE_LABEL[row.role]}</div>
+      <div class="champ blue">${esc(row.blue.champion)}${flag(row.blue)}</div>
+      <div class="track">
+        <div class="zero"></div>
+        <div class="bar ${cls}" style="width:${width}%"></div>
+        <div class="hit"></div>
+      </div>
+      <div class="champ red">${esc(row.red.champion)}${flag(row.red)}</div>
+      <div class="value">${signed(row.net)}</div>`;
+    el.querySelector(".hit").addEventListener("mousemove", (e) => showTip(e, row));
+    el.querySelector(".hit").addEventListener("mouseleave", hideTip);
+    host.appendChild(el);
+  }
+}
+
+function flag(pick) {
+  if (!pick.known) return ' <span class="flag">· unseen</span>';
+  if (pick.low_sample) return ` <span class="flag lowflag">· ${pick.games}g</span>`;
+  return "";
+}
+
+function showTip(event, row) {
+  const side = row.net >= 0 ? "blue" : "red";
+  showTipHTML(event, `
+    <div class="tt-title">${ROLE_LABEL[row.role]} — net ${signed(row.net)} toward ${side}</div>
+    <div class="tt-row">${esc(row.blue.champion)}: rating ${signed(row.blue.contribution)},
+      ${pct(row.blue.winrate)} WR over ${row.blue.games.toLocaleString()} games</div>
+    <div class="tt-row">${esc(row.red.champion)}: rating ${signed(-row.red.contribution)},
+      ${pct(row.red.winrate)} WR over ${row.red.games.toLocaleString()} games</div>`);
+}
+
+function showTipHTML(event, html) {
+  const tip = $("tooltip");
+  tip.innerHTML = html;
+  tip.style.opacity = "1";
+  const pad = 14;
+  const rect = tip.getBoundingClientRect();
+  let x = event.clientX + pad, y = event.clientY + pad;
+  if (x + rect.width > window.innerWidth - 8) x = event.clientX - rect.width - pad;
+  if (y + rect.height > window.innerHeight - 8) y = event.clientY - rect.height - pad;
+  tip.style.left = x + "px";
+  tip.style.top = y + "px";
+}
+
+function hideTip() { $("tooltip").style.opacity = "0"; }
+
+function renderTable(data) {
+  const body = $("tbody");
+  body.innerHTML = "";
+  for (const p of data.picks) {
+    // The stored rating is the champion's own strength; `contribution` is
+    // that rating signed toward blue, so red picks show the same rating
+    // with the opposite effect.
+    const rating = p.side === "blue" ? p.contribution : -p.contribution;
+    const games = p.low_sample
+      ? `<span class="lowflag">${p.games.toLocaleString()}</span>`
+      : p.games.toLocaleString();
+    body.insertAdjacentHTML("beforeend", `
+      <tr>
+        <td><span class="sidedot ${p.side}"></span>${esc(p.champion)}${p.known ? "" : " (unseen)"}</td>
+        <td>${ROLE_LABEL[p.role]}</td>
+        <td class="num">${signed(rating)}</td>
+        <td class="num">${signed(p.contribution)}</td>
+        <td class="num">${pct(p.winrate)}</td>
+        <td class="num">${games}</td>
+      </tr>`);
+  }
+}
+
+function renderScorecard() {
+  const p = META.pro_metrics;
+  if (p) {
+    // The pro model is the accurate one; lead with it rather than the
+    // solo-queue draft numbers.
+    $("metrics").innerHTML = `
+      <div class="metric"><div class="label">Pro ROC-AUC</div><div class="val">${p.roc_auc.toFixed(3)}</div></div>
+      <div class="metric"><div class="label">Pro accuracy</div><div class="val">${pct(p.accuracy)}</div></div>
+      <div class="metric"><div class="label">Always-pick-majority</div><div class="val">${pct(p.baseline_accuracy)}</div></div>
+      <div class="metric"><div class="label">Team only / draft only</div><div class="val">${p.roc_auc_team_only.toFixed(3)} / ${p.roc_auc_draft_only.toFixed(3)}</div></div>`;
+    $("caveat").innerHTML =
+      `<strong>With teams set, this predicts pro games at ${pct(p.accuracy)} against a `
+      + `${pct(p.baseline_accuracy)} baseline.</strong> Most of that comes from knowing which rosters are `
+      + `playing (${p.roc_auc_team_only.toFixed(3)} AUC) rather than from the draft `
+      + `(${p.roc_auc_draft_only.toFixed(3)}) — draft matters, but less than draft discourse implies. `
+      + `Champion ratings are anchored to the Challenger dataset and adjusted by pro data; the mean `
+      + `adjustment is only ${p.mean_abs_deviation.toFixed(3)} log-odds, so champion strength largely `
+      + `carries over between the two. <strong>Teams can only be compared within a league</strong> — `
+      + `just 10% of pro games are cross-league, too few to rank the leagues against each other. `
+      + `Without teams selected you get the solo-queue draft model, which is far weaker.`;
+    return;
+  }
+
+  const m = META.metrics[META.best_variant];
+  $("metrics").innerHTML = `
+    <div class="metric"><div class="label">ROC-AUC</div><div class="val">${m.roc_auc.toFixed(3)}</div></div>
+    <div class="metric"><div class="label">Accuracy</div><div class="val">${pct(m.accuracy)}</div></div>
+    <div class="metric"><div class="label">Always-pick-majority</div><div class="val">${pct(m.baseline_accuracy)}</div></div>
+    <div class="metric"><div class="label">Log loss</div><div class="val">${m.log_loss.toFixed(3)}</div></div>`;
+
+  $("caveat").innerHTML =
+    `<strong>Read these numbers as a lean, not a forecast.</strong> An ROC-AUC of `
+    + `${m.roc_auc.toFixed(3)} means the draft carries real but weak signal — barely above `
+    + `the 0.5 of a coin flip. That is expected: in solo queue, individual player skill `
+    + `decides games far more than champion select does, and matchmaking actively balances `
+    + `teams toward even. Champions flagged <span class="lowflag">in amber</span> have too `
+    + `few games at that role for their rate to mean much.`;
+}
+
+$("randomize").addEventListener("click", randomize);
+$("mirror").addEventListener("click", swapSides);
+$("j-save").addEventListener("click", saveToJournal);
+["j-ob", "j-or"].forEach((id) => $(id).addEventListener("input", refreshJournalImplied));
+boot();
+</script>
+</body>
+</html>

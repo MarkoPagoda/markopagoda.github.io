@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prediction journal — lol-predict</title>
+<!-- DEMO: mock-api.js answers the /api/ calls in the browser, so no Python server is needed -->
+<script src="mock-api.js"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --page:#f9f9f7; --surface-1:#fcfcfb; --text-primary:#0b0b0b; --text-secondary:#52514e;
+    --text-muted:#898781; --gridline:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,.10);
+    --blue:#2a78d6; --red:#e34948; --neutral:#f0efec; --warning:#fab219; --good:#0ca30c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page:#0d0d0d; --surface-1:#1a1a19; --text-primary:#fff; --text-secondary:#c3c2b7;
+      --text-muted:#898781; --gridline:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,.10);
+      --blue:#3987e5; --red:#e66767; --neutral:#383835;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page:#0d0d0d; --surface-1:#1a1a19; --text-primary:#fff; --text-secondary:#c3c2b7;
+    --text-muted:#898781; --gridline:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,.10);
+    --blue:#3987e5; --red:#e66767; --neutral:#383835;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--page); color:var(--text-primary);
+         font-family: system-ui,-apple-system,"Segoe UI",sans-serif; font-size:15px; line-height:1.5; }
+  .wrap { max-width:1080px; margin:0 auto; padding:32px 20px 64px; }
+  header h1 { margin:0 0 4px; font-size:22px; font-weight:600; letter-spacing:-.01em; }
+  header p { margin:0; color:var(--text-secondary); font-size:14px; }
+  nav { margin-bottom:18px; font-size:13px; }
+  nav a { color:var(--blue); text-decoration:none; }
+  nav a:hover { text-decoration:underline; }
+
+  .card { background:var(--surface-1); border:1px solid var(--border); border-radius:10px;
+          padding:20px; margin-top:20px; }
+  .card > h2 { margin:0 0 2px; font-size:15px; font-weight:600; }
+  .card > .sub { margin:0 0 18px; color:var(--text-secondary); font-size:13px; }
+
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
+  label { display:block; font-size:12px; color:var(--text-secondary); margin-bottom:4px; }
+  input, select, textarea {
+    font:inherit; font-size:14px; width:100%; background:var(--surface-1); color:var(--text-primary);
+    border:1px solid var(--border); border-radius:6px; padding:7px 9px;
+  }
+  textarea { min-height:56px; resize:vertical; }
+  button { font:inherit; font-size:13px; background:var(--surface-1); color:var(--text-primary);
+           border:1px solid var(--border); border-radius:6px; padding:7px 13px; cursor:pointer; }
+  button:hover { background:var(--neutral); }
+  button.primary { background:var(--blue); border-color:var(--blue); color:#fff; }
+  button.primary:hover { filter:brightness(1.08); }
+  .toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; align-items:center; }
+
+  .metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:14px; }
+  .metric .label { font-size:12px; color:var(--text-secondary); }
+  .metric .val { font-size:20px; font-weight:600; }
+
+  .tablewrap { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  th,td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--gridline); white-space:nowrap; }
+  th { color:var(--text-secondary); font-weight:600; font-size:12px; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+  .dot.blue{background:var(--blue)} .dot.red{background:var(--red)}
+  .pill { font-size:11px; padding:1px 7px; border-radius:10px; border:1px solid var(--border); color:var(--text-secondary); }
+  .hit { color:var(--good); } .miss { color:var(--red); }
+  .caveat { margin-top:18px; padding:13px 15px; border-left:2px solid var(--warning);
+            background:var(--neutral); border-radius:0 6px 6px 0; font-size:13px; color:var(--text-secondary); }
+  .caveat strong { color:var(--text-primary); }
+  .draft { font-size:11px; color:var(--text-muted); }
+  .draft .vs { opacity:.6; }
+  .empty { color:var(--text-muted); font-size:13px; padding:14px 0; }
+  .err { color:var(--red); font-size:13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav><a href="index.html">← Draft explorer</a></nav>
+  <header>
+    <h1>Prediction journal</h1>
+    <p>Log what the model said and what the odds said, before the game. Record the result after.</p>
+  </header>
+
+  <section class="card">
+    <h2>New entry</h2>
+    <p class="sub">Everything is optional except the two sides — log a bare matchup now, fill in odds and the result later.</p>
+    <div class="grid">
+      <div><label for="f-kind">Kind</label><select id="f-kind">
+        <option value="real">Real fixture</option><option value="fantasy">Fantasy / hypothetical</option>
+      </select></div>
+      <div><label for="f-label">Label</label><input id="f-label" placeholder="LCK W3D2"></div>
+      <div><label for="f-league">League</label><input id="f-league" placeholder="LCK"></div>
+      <div><label for="f-blue">Blue side</label><input id="f-blue" placeholder="T1"></div>
+      <div><label for="f-red">Red side</label><input id="f-red" placeholder="Gen.G"></div>
+      <div><label for="f-prob">Model P(blue)</label><input id="f-prob" type="number" step="0.001" min="0" max="1" placeholder="0.529"></div>
+      <div><label for="f-ob">Odds blue (decimal)</label><input id="f-ob" type="number" step="0.01" min="1.01" placeholder="1.85"></div>
+      <div><label for="f-or">Odds red (decimal)</label><input id="f-or" type="number" step="0.01" min="1.01" placeholder="1.95"></div>
+    </div>
+    <div style="margin-top:12px"><label for="f-notes">Notes</label><textarea id="f-notes" placeholder="Draft read, roster changes, anything worth remembering"></textarea></div>
+    <div class="toolbar">
+      <button class="primary" id="save">Save entry</button>
+      <span id="implied" class="pill" hidden></span>
+      <span class="err" id="err" hidden></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Record</h2>
+    <p class="sub" id="record-sub">Nothing logged yet.</p>
+    <div class="metrics" id="metrics"></div>
+    <div class="caveat" id="caveat" hidden></div>
+  </section>
+
+  <section class="card">
+    <h2>Entries</h2>
+    <div class="toolbar" style="margin:0 0 14px">
+      <button data-filter="" class="primary">All</button>
+      <button data-filter="real">Real</button>
+      <button data-filter="fantasy">Fantasy</button>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th>When</th><th>Matchup</th><th class="num">Model</th><th class="num">Market</th>
+          <th class="num">Margin</th><th>My pick</th><th>Result</th><th></th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p class="empty" id="empty" hidden>No entries yet.</p>
+  </section>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const pct = (x) => (x == null ? "—" : (x * 100).toFixed(1) + "%");
+let FILTER = "";
+
+function impliedFrom(ob, or_) {
+  if (!ob || !or_ || ob <= 1 || or_ <= 1) return null;
+  const rb = 1 / ob, rr = 1 / or_, over = rb + rr;
+  return { fair_blue: rb / over, margin: over - 1 };
+}
+
+function refreshImplied() {
+  const imp = impliedFrom(parseFloat($("f-ob").value), parseFloat($("f-or").value));
+  const el = $("implied");
+  if (!imp) { el.hidden = true; return; }
+  el.hidden = false;
+  el.textContent = `Market: blue ${pct(imp.fair_blue)} · bookmaker margin ${(imp.margin * 100).toFixed(1)}%`;
+}
+["f-ob", "f-or"].forEach((id) => $(id).addEventListener("input", refreshImplied));
+
+async function save() {
+  const body = {
+    kind: $("f-kind").value,
+    label: $("f-label").value || null,
+    league: $("f-league").value || null,
+    blue_team: $("f-blue").value || null,
+    red_team: $("f-red").value || null,
+    model_probability: $("f-prob").value ? parseFloat($("f-prob").value) : null,
+    odds_blue: $("f-ob").value ? parseFloat($("f-ob").value) : null,
+    odds_red: $("f-or").value ? parseFloat($("f-or").value) : null,
+    notes: $("f-notes").value || null,
+  };
+  if (!body.blue_team || !body.red_team) {
+    $("err").hidden = false; $("err").textContent = "Both sides are required.";
+    return;
+  }
+  $("err").hidden = true;
+  const res = await fetch("/api/journal", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  if (!res.ok) { $("err").hidden = false; $("err").textContent = "Save failed."; return; }
+  for (const id of ["f-label","f-blue","f-red","f-prob","f-ob","f-or","f-notes"]) $(id).value = "";
+  refreshImplied();
+  load();
+}
+
+async function setResult(id, winner) {
+  await fetch(`/api/journal/${id}`, {
+    method: "PATCH", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actual_winner: winner }),
+  });
+  load();
+}
+
+async function remove(id) {
+  await fetch(`/api/journal/${id}`, { method: "DELETE" });
+  load();
+}
+
+async function load() {
+  const res = await fetch("/api/journal" + (FILTER ? `?kind=${FILTER}` : ""));
+  const { entries, summary } = await res.json();
+  renderSummary(summary);
+  renderRows(entries);
+}
+
+function renderSummary(s) {
+  $("record-sub").textContent =
+    `${s.n_entries} entr${s.n_entries === 1 ? "y" : "ies"} · ${s.n_resolved} resolved`
+    + (s.n_fantasy ? ` · ${s.n_fantasy} fantasy (never scored)` : "");
+
+  if (!s.n_resolved) {
+    $("metrics").innerHTML = "";
+    $("caveat").hidden = false;
+    $("caveat").innerHTML =
+      "<strong>Nothing scored yet.</strong> Record some results and this fills in. "
+      + "Note that a journal needs a few dozen resolved entries before its numbers mean "
+      + "anything — below that, a run of luck looks identical to a good model.";
+    return;
+  }
+
+  let html = `
+    <div class="metric"><div class="label">Model accuracy</div><div class="val">${pct(s.model_accuracy)}</div></div>
+    <div class="metric"><div class="label">Model Brier</div><div class="val">${s.model_brier.toFixed(3)}</div></div>
+    <div class="metric"><div class="label">Resolved</div><div class="val">${s.n_resolved}</div></div>`;
+  if (s.n_user_picks) {
+    html += `
+      <div class="metric"><div class="label">Your accuracy</div><div class="val">${pct(s.user_accuracy)}</div></div>
+      <div class="metric"><div class="label">Model, same games</div><div class="val">${pct(s.model_accuracy_on_user_subset)}</div></div>`;
+  }
+  if (s.n_with_odds) {
+    html += `
+      <div class="metric"><div class="label">Market Brier</div><div class="val">${s.market_brier.toFixed(3)}</div></div>
+      <div class="metric"><div class="label">Model Brier (same games)</div><div class="val">${s.model_brier_on_odds_subset.toFixed(3)}</div></div>
+      <div class="metric"><div class="label">Avg bookmaker margin</div><div class="val">${(s.mean_margin * 100).toFixed(1)}%</div></div>`;
+  }
+  $("metrics").innerHTML = html;
+
+  const parts = [];
+  if (s.n_resolved < 30) {
+    parts.push(`<strong>Only ${s.n_resolved} resolved entries — treat all of this as provisional.</strong> `
+      + "Brier and accuracy both need a few dozen before they separate skill from luck.");
+  }
+  if (s.n_with_odds) {
+    const better = s.model_brier_on_odds_subset < s.market_brier;
+    parts.push(
+      `On the ${s.n_with_odds} entries with odds, the model scores `
+      + `${s.model_brier_on_odds_subset.toFixed(3)} against the market's ${s.market_brier.toFixed(3)} `
+      + `(lower is better), so it is currently ${better ? "ahead of" : "behind"} the closing line. `
+      + `The market also carries a ${(s.mean_margin * 100).toFixed(1)}% margin, which is the real bar: `
+      + "being more accurate than the bookmaker is not the same as being more accurate than the bookmaker plus their cut.");
+  } else {
+    parts.push("Add odds to entries to compare the model against the market.");
+  }
+  if (s.n_user_picks) {
+    const gap = s.user_accuracy - s.model_accuracy_on_user_subset;
+    parts.push(
+      `You called ${s.n_user_picks} of these yourself at ${pct(s.user_accuracy)}, against the `
+      + `model's ${pct(s.model_accuracy_on_user_subset)} on the same games — `
+      + (Math.abs(gap) < 1e-9 ? "level." : gap > 0 ? "you are ahead." : "the model is ahead.")
+      + ` You agreed with it ${pct(s.user_agreed_with_model)} of the time, so the two records are `
+      + (s.user_agreed_with_model > 0.85 ? "largely the same bet." : "genuinely independent."));
+  }
+  $("caveat").hidden = false;
+  $("caveat").innerHTML = parts.join(" ");
+}
+
+const SLOTS = ["top", "jungle", "mid", "bot", "support"];
+
+function draftLine(e) {
+  // The draft is what the model actually scored, so an entry is only
+  // interpretable later if it travels with the picks.
+  if (!e.picks) return "";
+  const side = (s) => SLOTS.map((r) => e.picks[`${s}_${r}`]).filter(Boolean).join(" ");
+  const blue = side("blue"), red = side("red");
+  if (!blue && !red) return "";
+  return `<br><span class="draft">${esc(blue)} <span class="vs">vs</span> ${esc(red)}</span>`;
+}
+
+function renderRows(entries) {
+  const body = $("rows");
+  body.innerHTML = "";
+  $("empty").hidden = entries.length > 0;
+
+  for (const e of entries) {
+    const when = (e.created_at || "").slice(0, 10);
+    const market = e.implied ? pct(e.implied.fair_blue) : "—";
+    const margin = e.implied ? (e.implied.margin * 100).toFixed(1) + "%" : "—";
+    let result = "";
+    if (e.kind === "fantasy") {
+      result = `<span class="pill">fantasy</span>`;
+    } else if (e.actual_winner) {
+      const correct = e.model_probability != null
+        && ((e.model_probability >= 0.5) === (e.actual_winner === "blue"));
+      result = `<span class="dot ${e.actual_winner}"></span>${e.actual_winner}`
+        + (e.model_probability != null ? ` <span class="${correct ? "hit" : "miss"}">${correct ? "✓" : "✗"}</span>` : "");
+    } else {
+      result = `<button onclick="setResult(${e.id},'blue')">Blue won</button>
+                <button onclick="setResult(${e.id},'red')">Red won</button>`;
+    }
+    let mine = "—";
+    if (e.user_pick) {
+      const right = e.actual_winner ? e.user_pick === e.actual_winner : null;
+      mine = `<span class="dot ${e.user_pick}"></span>${e.user_pick}`
+        + (right === null ? "" : ` <span class="${right ? "hit" : "miss"}">${right ? "✓" : "✗"}</span>`);
+    }
+    body.insertAdjacentHTML("beforeend", `
+      <tr>
+        <td>${esc(when)}${e.label ? `<br><span class="pill">${esc(e.label)}</span>` : ""}</td>
+        <td><span class="dot blue"></span>${esc(e.blue_team)} vs <span class="dot red"></span>${esc(e.red_team)}
+            ${e.league ? `<span class="pill">${esc(e.league)}</span>` : ""}
+            ${draftLine(e)}</td>
+        <td class="num">${pct(e.model_probability)}</td>
+        <td class="num">${market}</td>
+        <td class="num">${margin}</td>
+        <td>${mine}</td>
+        <td>${result}</td>
+        <td><button onclick="remove(${e.id})">Delete</button></td>
+      </tr>`);
+  }
+}
+
+document.querySelectorAll("[data-filter]").forEach((b) => {
+  b.addEventListener("click", () => {
+    FILTER = b.dataset.filter;
+    document.querySelectorAll("[data-filter]").forEach((x) => x.classList.remove("primary"));
+    b.classList.add("primary");
+    load();
+  });
+});
+$("save").addEventListener("click", save);
+load();
+</script>
+</body>
+</html>

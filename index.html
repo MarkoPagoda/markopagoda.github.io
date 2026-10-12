@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- viewport-fit=cover lets the page use the full screen on phones with notches -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Matej's portfolio: personal projects, experience and contact info, styled like Windows 7.">
+  <title>Matej | Portfolio</title>
+
+  <link rel="stylesheet" href="style.css">
+  <!-- defer = run the script after the page has loaded, so every element exists -->
+  <script src="script.js" defer></script>
+</head>
+
+<body>
+  <!-- The "screen" -->
+  <main id="desktop">
+    <!-- Filled in by buildDesktopIcons() in the script below -->
+    <ul id="icon-grid" aria-label="Desktop files"></ul>
+  </main>
+
+  <!-- Start menu, hidden until the orb is clicked -->
+  <ul id="start-menu" hidden aria-label="Start menu"></ul>
+
+  <!-- Right-click menu for the desktop, hidden until needed -->
+  <ul id="context-menu" hidden aria-label="Desktop menu">
+    <li><button>🎨 Personalize</button></li>
+  </ul>
+
+  <!-- Taskbar along the bottom -->
+  <nav id="taskbar" aria-label="Taskbar">
+    <button id="start-button" aria-label="Start" aria-expanded="false">⊞</button>
+    <div id="task-list"></div>
+    <time id="clock"></time>
+  </nav>
+
+</body>
+</html>
