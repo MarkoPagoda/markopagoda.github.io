@@ -55,6 +55,15 @@ const FILES = [
     icon: "🎨",
     title: "Personalization",
     type: "wallpapers"                 // special type: opens the wallpaper picker
+  },
+  {
+    // Easter egg: hidden from the desktop and Start menu, opened by typing a secret word
+    name: "Great Success",
+    icon: "⚠️",
+    title: "System Message",
+    type: "easter-egg",
+    hidden: true,
+    size: { width: "min(380px, 92%)", height: "230px" }
   }
 ];
 
@@ -68,7 +77,7 @@ const WALLPAPERS = [
   "xp.jpg"
 ];
 const WALLPAPER_STORAGE_KEY = "portfolio-wallpaper";   // remembers the choice between visits
-
+const SECRET_WORDS = ["borat", "booyakasha", "niceee"]; // type these to open easter egg windows; case-insensitive, accents ignored
 const FILE_TO_OPEN_ON_LOAD = "Contact.txt";     // name of the file to open at start; use null for a clean desktop
 
 // STATE + SHORTCUTS 
@@ -98,6 +107,19 @@ function escapeHTML(text) {
 function buildContent(file) {
   if (file.type === "wallpapers") return buildWallpaperPicker();
 
+  // Fake Windows error dialog (the easter egg)
+  if (file.type === "easter-egg") {
+    return `
+      <div class="egg">
+        <span class="egg-icon" aria-hidden="true">⚠️</span>
+        <div>
+          <p class="egg-title">Great success!</p>
+          <p>You found the hidden file. Your visit has been verified and your browser is now officially approved by this portfolio.</p>
+          <p>Very nice.</p>
+        </div>
+      </div>
+      <div class="egg-buttons"><button class="egg-ok">High five</button></div>`;
+  }
   // A page shown inside the window, like a mini browser
   if (file.type === "iframe") {
     return `<iframe class="demo-frame" src="${file.url}" title="${escapeHTML(file.title)}"
@@ -124,6 +146,7 @@ function buildContent(file) {
 
 // DESKTOP ICONS + START MENU
 function buildDesktopIcons() {
+  if (file.hidden) return;         // hidden files (the easter egg) get no icon
   FILES.forEach((file, index) => {
     const item = document.createElement("li");
     const button = document.createElement("button");
@@ -149,6 +172,7 @@ function buildDesktopIcons() {
 
 function buildStartMenu() {
   FILES.forEach((file, index) => {
+    if (file.hidden) return;         // hidden files (the easter egg) get no entry in the Start menu
     const item = document.createElement("li");
     const button = document.createElement("button");
     button.textContent = `${file.icon} ${file.name}`;
@@ -204,7 +228,9 @@ function createWindow(index) {
   `;
   desktop.appendChild(win);
   if (file.type === "wallpapers") initWallpaperPicker(win);
-
+  if (file.type === "easter-egg") {
+    win.querySelector(".egg-ok").addEventListener("click", () => closeWindow(index));
+  }
   if (file.type === "iframe") {
     // Clicks inside an iframe never reach our pointerdown handler, so when the
     // page loses focus to the frame we bring this window to the front instead.
@@ -412,7 +438,17 @@ document.addEventListener("keydown", (event) => {
   if (!startMenu.hidden) toggleStartMenu(false);
   else if (activeIndex !== null) closeWindow(activeIndex);
 });
+// Easter egg: remember the last few keys typed and look for a secret word
+let typedKeys = "";
+document.addEventListener("keydown", (event) => {
+  if (event.key.length !== 1) return;                     // ignore Shift, Escape, arrows...
+  typedKeys = (typedKeys + event.key.toLowerCase()).slice(-20);   // keep only the latest 20 characters
 
+  if (SECRET_WORDS.some((word) => typedKeys.endsWith(word))) {
+    typedKeys = "";
+    openFile(FILES.findIndex((file) => file.type === "easter-egg"));
+  }
+});
 // START UP
 buildDesktopIcons();
 buildStartMenu();
