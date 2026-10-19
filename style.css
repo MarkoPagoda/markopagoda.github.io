@@ -419,3 +419,29 @@ button { font: inherit; }
   border: 0;
   background: #fff;
 }
+/*EASTER EGG DIALOG*/
+.egg {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.egg-icon { font-size: 36px; line-height: 1; }
+.egg p { margin: 0 0 8px; }
+.egg-title { font-size: 17px; color: var(--text-link); }
+
+.egg-buttons { margin-top: 14px; text-align: right; }
+
+.egg-ok {
+  min-width: 90px;
+  padding: 4px 16px;
+  border: 1px solid #707070;
+  border-radius: 3px;
+  background: linear-gradient(#f2f2f2, #ebebeb 50%, #ddd 50%, #cfcfcf);
+  cursor: pointer;
+}
+
+.egg-ok:hover {
+  border-color: #3c7fb1;
+  background: linear-gradient(#eaf6fd, #d9f0fc 50%, #bee6fd 50%, #a7d9f5);
+}

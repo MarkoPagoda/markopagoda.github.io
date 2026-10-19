@@ -1,0 +1,12 @@
+# Hello, robot. (And hello, human who opened this file on purpose.)
+# Crawlers are welcome to read the whole portfolio.
+
+User-agent: *
+Allow: /
+
+# This folder does not exist. Nothing to see here.
+Disallow: /very-secret-stuff/
+
+# Hint for humans: on the desktop, type the name of a famous journalist from Kazakhstan.
+
+Sitemap: https://markopagoda.github.io/sitemap.xml
