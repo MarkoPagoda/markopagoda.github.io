@@ -146,8 +146,8 @@ function buildContent(file) {
 
 // DESKTOP ICONS + START MENU
 function buildDesktopIcons() {
-  if (file.hidden) return;         // hidden files (the easter egg) get no icon
   FILES.forEach((file, index) => {
+    if (file.hidden) return;         // hidden files (the easter egg) get no icon
     const item = document.createElement("li");
     const button = document.createElement("button");
 
